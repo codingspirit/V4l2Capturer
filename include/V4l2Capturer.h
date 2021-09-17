@@ -42,10 +42,11 @@ V4l2CapturerHandle v4l2CapturerOpen(const char *devName);
  * @param[in] width Width of captured frame.
  * @param[in] height Height of captured frame.
  * @param[in] format Frame format.
+ * @param[in] bitrate target bitrate(bps).
  * @return int 0 or error code.
  */
 int v4l2CapturerConfig(V4l2CapturerHandle handle, const uint32_t width, const uint32_t height,
-                       const V4l2CapturerFormat format);
+                       const V4l2CapturerFormat format, const size_t bitrate);
 
 /**
  * @brief Set onFrame callback.

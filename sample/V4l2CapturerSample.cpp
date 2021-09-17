@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         return -EFAULT;
     }
 
-    v4l2CapturerConfig(handle, 1920, 1080, V4L2_CAP_FMT_H264);
+    v4l2CapturerConfig(handle, 1920, 1080, V4L2_CAP_FMT_H264, 5000000LL);
 
     v4l2CapturerSetOnFrameCallback(handle, [](const void *data, const size_t size) {
         static size_t frameCount = 1;

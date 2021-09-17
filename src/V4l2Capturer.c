@@ -153,7 +153,7 @@ V4l2CapturerHandle v4l2CapturerOpen(const char *devName)
 }
 
 int v4l2CapturerConfig(V4l2CapturerHandle handle, const uint32_t width, const uint32_t height,
-                       const V4l2CapturerFormat format)
+                       const V4l2CapturerFormat format, const size_t bitrate)
 {
     V4L2_CAPTURER_GET(handle);
 
@@ -182,7 +182,19 @@ int v4l2CapturerConfig(V4l2CapturerHandle handle, const uint32_t width, const ui
 
     if (xioctl(capturer->fd, VIDIOC_S_FMT, &fmt))
     {
-        LOG("Config error: %d, %s\n", errno, strerror(errno));
+        LOG("Format set failed: %d, %s\n", errno, strerror(errno));
+        return -errno;
+    }
+
+    // config target bitrate
+    struct v4l2_control ctrl = {
+        .id = V4L2_CID_MPEG_VIDEO_BITRATE,
+        .value = bitrate,
+    };
+
+    if (xioctl(capturer->fd, VIDIOC_S_CTRL, &ctrl))
+    {
+        LOG("Bitrate set failed: %d, %s\n", errno, strerror(errno));
         return -errno;
     }
 
