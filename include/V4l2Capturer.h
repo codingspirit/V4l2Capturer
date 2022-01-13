@@ -74,13 +74,27 @@ int v4l2CapturerStartStreaming(V4l2CapturerHandle handle);
 int v4l2CapturerStopStreaming(V4l2CapturerHandle handle);
 
 /**
- * @brief Run capturer. In streaming case, user need to call this in a loop.
+ * @brief Run capturer and get frame in async mode. In streaming case, user need to call this in a loop. If onFrameCb
+ * was set, this method will fire onFrameCb.
  *
  * @param[in] handle Capturer handle.
  * @param[in] timeoutSec Operation timeout in seconds.
  * @return int 0 or error code.
  */
 int v4l2CapturerRun(V4l2CapturerHandle handle, const int timeoutSec);
+
+/**
+ * @brief Get frame in sync mode(blocking). This method will not fire onFrameCb.
+ *
+ * @param[in] handle Capturer handle.
+ * @param[in] timeoutSec Operation timeout in seconds.
+ * @param[in,out] frameDataBuffer Target frame data buffer.
+ * @param[in] frameDataBufferSize Target frame data buffer size in bytes.
+ * @param[out] frameSize Frame data size in bytes
+ * @return int 0 or error code.
+ */
+int v4l2CapturerSyncGetFrame(V4l2CapturerHandle handle, const int timeoutSec, void *frameDataBuffer,
+                             const size_t frameDataBufferSize, size_t *frameSize);
 
 /**
  * @brief Close capturer and release resources.

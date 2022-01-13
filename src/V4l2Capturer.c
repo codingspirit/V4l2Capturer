@@ -87,7 +87,7 @@ static bool isValidCaptureDevice(const int fd)
     return true;
 }
 
-static int v4l2CapturerGetFrame(V4l2CapturerHandle handle)
+static int v4l2CapturerAsyncGetFrame(V4l2CapturerHandle handle)
 {
     V4L2_CAPTURER_GET(handle);
 
@@ -111,6 +111,38 @@ static int v4l2CapturerGetFrame(V4l2CapturerHandle handle)
     {
         LOG("VIDIOC_QBUF failed\n");
         return -errno;
+    }
+
+    return 0;
+}
+
+static int v4l2CapturerSelectFD(V4l2CapturerHandle handle, const int timeoutSec)
+{
+    V4L2_CAPTURER_GET(handle);
+
+    // TODO: maybe move this part out of loop
+    FD_ZERO(&capturer->fds);
+    FD_SET(capturer->fd, &capturer->fds);
+
+    struct timeval tv = {
+        .tv_sec = timeoutSec,
+    };
+
+    int res = select(capturer->fd + 1, &capturer->fds, NULL, NULL, &tv);
+
+    if (res == -EPERM)
+    {
+        if (EINTR == errno)
+        {
+            return -EAGAIN;
+        }
+        LOG("Select failed\n");
+        return -errno;
+    }
+    else if (!res)
+    {
+        LOG("Capturer run timeout\n");
+        return -EAGAIN;
     }
 
     return 0;
@@ -299,34 +331,60 @@ int v4l2CapturerStopStreaming(V4l2CapturerHandle handle)
 
 int v4l2CapturerRun(V4l2CapturerHandle handle, const int timeoutSec)
 {
+    int res = v4l2CapturerSelectFD(handle, timeoutSec);
+
+    if (res)
+    {
+        LOG("Failed to select: %d", res);
+        return res;
+    }
+
+    return v4l2CapturerAsyncGetFrame(handle);
+}
+
+int v4l2CapturerSyncGetFrame(V4l2CapturerHandle handle, const int timeoutSec, void *frameDataBuffer,
+                             const size_t frameDataBufferSize, size_t *frameSize)
+{
+    V4L2_CAPTURER_NULL_CHECK(frameDataBuffer);
+    V4L2_CAPTURER_NULL_CHECK(frameSize);
     V4L2_CAPTURER_GET(handle);
 
-    // TODO: maybe move this part out of loop
-    FD_ZERO(&capturer->fds);
-    FD_SET(capturer->fd, &capturer->fds);
+    int res = 0;
 
-    struct timeval tv = {
-        .tv_sec = timeoutSec,
+    if (res = v4l2CapturerSelectFD(handle, timeoutSec))
+    {
+        LOG("Failed to select: %d", res);
+        return res;
+    }
+
+    struct v4l2_buffer buf = {
+        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+        .memory = V4L2_MEMORY_MMAP,
     };
 
-    int res = select(capturer->fd + 1, &capturer->fds, NULL, NULL, &tv);
-
-    if (res == -EPERM)
+    if (xioctl(capturer->fd, VIDIOC_DQBUF, &buf))
     {
-        if (EINTR == errno)
-        {
-            return -EAGAIN;
-        }
-        LOG("Select failed\n");
+        LOG("VIDIOC_DQBUF failed\n");
         return -errno;
     }
-    else if (!res)
+
+    if (buf.bytesused > frameDataBufferSize)
     {
-        LOG("Capturer run timeout\n");
-        return -EAGAIN;
+        res = -ENOMEM;
+    }
+    else
+    {
+        memcpy(frameDataBuffer, capturer->buffers[buf.index].start, buf.bytesused);
+        *frameSize = buf.bytesused;
     }
 
-    return v4l2CapturerGetFrame(handle);
+    if (xioctl(capturer->fd, VIDIOC_QBUF, &buf))
+    {
+        LOG("VIDIOC_QBUF failed\n");
+        return -errno;
+    }
+
+    return res;
 }
 
 int v4l2CapturerClose(V4l2CapturerHandle handle)
