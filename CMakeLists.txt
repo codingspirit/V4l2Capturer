@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(v4l2capturer VERSION 1.0.0 LANGUAGES C CXX)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 option(BUILD_SAMPLE "Build sample" ON)
 
 find_package(PkgConfig REQUIRED)
